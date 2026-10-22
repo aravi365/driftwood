@@ -216,11 +216,17 @@ class MainActivity : Activity() {
 
     private fun reload() {
         val installed = AppRepo.load(this)
-        val byPkg = installed.associateBy { it.pkg }
+        val labels = prefs.labels
+        val byPkg = installed.associateBy { it.pkg }.mapValues { (pkg, app) ->
+            app.copy(
+                label = labels[pkg] ?: app.label,
+                banner = TileArt.load(this, pkg) ?: app.banner,
+            )
+        }
         val hidden = prefs.hidden
         val order = prefs.order
         visible = order.mapNotNull { byPkg[it] }.filter { it.pkg !in hidden } +
-            installed.filter { it.pkg !in order && it.pkg !in hidden }.sortedBy { it.label.lowercase() }
+            byPkg.values.filter { it.pkg !in order && it.pkg !in hidden }.sortedBy { it.label.lowercase() }
         buildGrid()
     }
 
@@ -405,23 +411,85 @@ class MainActivity : Activity() {
     private fun showAppMenu(app: App) {
         val idx = visible.indexOf(app)
         val isInput = app.pkg.startsWith(AppRepo.INPUT_PREFIX)
-        val options = arrayOf("Move to front", "Move left", "Move right", "Hide") + if (isInput) emptyArray() else arrayOf("App info")
+        val actions = mutableListOf<Pair<String, () -> Unit>>(
+            "Move to front" to { move(idx, 0) },
+            "Move left" to { move(idx, idx - 1) },
+            "Move right" to { move(idx, idx + 1) },
+            "Rename" to { askRename(app) },
+            "Change picture" to { pickPicture(app) },
+        )
+        if (TileArt.load(this, app.pkg) != null) actions += "Use original picture" to {
+            TileArt.clear(this, app.pkg); art.remove(app.pkg); shownKey = null; reload()
+        }
+        actions += "Hide" to {
+            prefs.hidden = prefs.hidden + app.pkg
+            focusedPkg = null
+            reload()
+        }
+        if (!isInput) actions += "App info" to {
+            open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")))
+        }
         AlertDialog.Builder(this, R.style.DriftwoodDialog)
             .setTitle(app.label)
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> move(idx, 0)
-                    1 -> move(idx, idx - 1)
-                    2 -> move(idx, idx + 1)
-                    3 -> {
-                        prefs.hidden = prefs.hidden + app.pkg
-                        focusedPkg = null
-                        reload()
-                    }
-                    4 -> open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}")))
-                }
+            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
+            .show()
+    }
+
+    private fun askRename(app: App) {
+        val input = EditText(this).apply {
+            setText(app.label)
+            isSingleLine = true
+            selectAll()
+        }
+        AlertDialog.Builder(this, R.style.DriftwoodDialog)
+            .setTitle("Rename")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val name = input.text.toString().trim()
+                prefs.labels = if (name.isEmpty()) prefs.labels - app.pkg else prefs.labels + (app.pkg to name)
+                focusedPkg = app.pkg
+                shownKey = null
+                reload()
+            }
+            .setNeutralButton("Original name") { _, _ ->
+                prefs.labels = prefs.labels - app.pkg
+                shownKey = null
+                reload()
             }
             .show()
+    }
+
+    private var pendingPicture: App? = null
+
+    /** Pick any photo on the TV (send one over with LocalSend, or copy from USB). */
+    private fun pickPicture(app: App) {
+        val perm = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_IMAGES
+            else android.Manifest.permission.READ_EXTERNAL_STORAGE
+        if (checkSelfPermission(perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            pendingPicture = app
+            requestPermissions(arrayOf(perm), REQ_PHOTOS)
+            return
+        }
+        val images = TileArt.recentImages(this)
+        if (images.isEmpty()) {
+            Toast.makeText(this, "No photos on the TV yet. Send one with LocalSend or copy it from USB.", Toast.LENGTH_LONG).show()
+            return
+        }
+        AlertDialog.Builder(this, R.style.DriftwoodDialog)
+            .setTitle("Picture for ${app.label}")
+            .setItems(images.map { it.name }.toTypedArray()) { _, which ->
+                if (TileArt.save(this, app.pkg, images[which].uri)) {
+                    art.remove(app.pkg); shownKey = null; focusedPkg = app.pkg; reload()
+                } else Toast.makeText(this, "Couldn't read that picture", Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, results)
+        val app = pendingPicture ?: return
+        pendingPicture = null
+        if (requestCode == REQ_PHOTOS && results.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) pickPicture(app)
     }
 
     private fun move(from: Int, to: Int) {
@@ -497,5 +565,6 @@ class MainActivity : Activity() {
     companion object {
         const val COLUMNS = 5
         const val PHOTO_MS = 120_000L
+        const val REQ_PHOTOS = 7
     }
 }

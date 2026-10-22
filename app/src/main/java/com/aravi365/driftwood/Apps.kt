@@ -8,7 +8,7 @@ import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 import android.provider.Settings
 
-class App(
+data class App(
     val pkg: String,
     val label: String,
     val launch: Intent,
@@ -86,6 +86,14 @@ class Prefs(ctx: Context) {
     var weather: String?
         get() = sp.getString("weather", null)
         set(v) = sp.edit().putString("weather", v).putLong("weather_at", System.currentTimeMillis()).apply()
+
+    /** Names the user gave tiles, keyed by package (or input id). */
+    var labels: Map<String, String>
+        get() {
+            val json = org.json.JSONObject(sp.getString("labels", null) ?: "{}")
+            return json.keys().asSequence().associateWith { json.getString(it) }
+        }
+        set(v) = sp.edit().putString("labels", org.json.JSONObject(v).toString()).apply()
 
     val weatherAge: Long
         get() = System.currentTimeMillis() - sp.getLong("weather_at", 0)
