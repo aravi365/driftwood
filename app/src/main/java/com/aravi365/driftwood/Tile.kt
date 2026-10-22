@@ -1,7 +1,5 @@
 package com.aravi365.driftwood
 
-import android.animation.Animator
-import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Rect
@@ -19,8 +17,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
- * tvOS-style app tile: lifts and grows on focus, a light sheen sweeps across,
- * then it gently sways in 3D while it stays focused. The name appears only when focused.
+ * tvOS-style app tile: lifts and grows inside a thin glowing glass ring, and a light sheen
+ * sweeps across. The name appears only when focused.
  */
 @SuppressLint("ViewConstructor")
 class Tile(
@@ -34,7 +32,7 @@ class Tile(
 ) : LinearLayout(context) {
 
     val card = FrameLayout(context)
-    /** Card plus the floating glass frame; this is what grows and sways. */
+    /** Card plus the floating glass ring; this is what grows on focus. */
     private val holder = FrameLayout(context)
     private val ring = View(context)
     var row = 0
@@ -44,7 +42,6 @@ class Tile(
     private val shine = View(context)
     private val caption = TextView(context)
     private val shineW = (tileW * 0.45f).toInt()
-    private val sway = ArrayList<Animator>()
     private val glass = GlassDrawable(14 * dp, dp)
     private val glassView = View(context)
 
@@ -95,18 +92,16 @@ class Tile(
         glassView.background = glass
         glassView.alpha = IDLE_GLASS
         card.addView(glassView, FrameLayout.LayoutParams(-1, -1))
-        // Floating glass frame a few dp outside the card, visible on white and dark banners alike.
+        // Thin glass edge right on the card's border, visible on white and dark banners alike.
         val gapPx = (RING_GAP * dp).toInt()
-        ring.background = GradientDrawable().apply {
-            cornerRadius = (14 + RING_GAP) * dp
-            setStroke((3 * dp).toInt(), 0xFFFFFFFF.toInt())
-        }
+        ring.background = GlowRingDrawable((14 + RING_GAP) * dp, dp)
+        ring.translationZ = 11 * dp  // stays above the lifted card
         ring.alpha = 0f
         holder.clipChildren = false
         holder.clipToPadding = false
         holder.cameraDistance = 9000 * dp
-        holder.addView(ring, FrameLayout.LayoutParams(-1, -1))
         holder.addView(card, FrameLayout.LayoutParams(tileW, tileH).apply { setMargins(gapPx, gapPx, gapPx, gapPx) })
+        holder.addView(ring, FrameLayout.LayoutParams(-1, -1))  // on top, hugging the card's edge
         addView(holder, LayoutParams(tileW + 2 * gapPx, tileH + 2 * gapPx))
 
         caption.text = label
@@ -124,13 +119,13 @@ class Tile(
     override fun onFocusChanged(gain: Boolean, direction: Int, previous: Rect?) {
         super.onFocusChanged(gain, direction, previous)
         val ease = DecelerateInterpolator(2.2f)
-        val scale = if (gain) 1.12f else 1f
+        val scale = if (gain) 1.08f else 1f
         holder.animate().scaleX(scale).scaleY(scale).setDuration(220).setInterpolator(ease).start()
-        card.animate().translationZ(if (gain) 20 * dp else 0f).setDuration(220).setInterpolator(ease).start()
+        card.animate().translationZ(if (gain) 10 * dp else 0f).setDuration(220).setInterpolator(ease).start()
         ring.animate().alpha(if (gain) 1f else 0f).setDuration(260).setInterpolator(ease).start()
-        glassView.animate().alpha(if (gain) 1f else IDLE_GLASS).setDuration(260).setInterpolator(ease).start()
+        glassView.animate().alpha(if (gain) 0.7f else IDLE_GLASS).setDuration(260).setInterpolator(ease).start()
         caption.animate().alpha(if (gain) 1f else 0f)
-            .translationY(if (gain) tileH * 0.07f else 0f)
+            .translationY(if (gain) tileH * 0.05f else 0f)
             .setDuration(220).setInterpolator(ease).start()
 
         if (gain) {
@@ -140,43 +135,12 @@ class Tile(
             shine.animate().translationX(tileW.toFloat()).setStartDelay(90).setDuration(700)
                 .setInterpolator(AccelerateDecelerateInterpolator())
                 .withEndAction { shine.alpha = 0f }.start()
-            startSway()
             onFocus?.invoke(this)
-        } else {
-            stopSway()
         }
-    }
-
-    private fun startSway() {
-        stopSway()
-        sway += swing(View.ROTATION_Y, 2.4f, 3100).apply {
-            addUpdateListener { glass.tilt = holder.rotationY / 2.4f }
-        }
-        sway += swing(View.ROTATION_X, 1.6f, 4300)
-    }
-
-    private fun swing(prop: android.util.Property<View, Float>, deg: Float, ms: Long) =
-        ObjectAnimator.ofFloat(holder, prop, 0f, deg, 0f, -deg, 0f).apply {
-            duration = ms
-            repeatCount = ObjectAnimator.INFINITE
-            interpolator = AccelerateDecelerateInterpolator()
-            startDelay = 350
-            start()
-        }
-
-    fun pauseMotion() = sway.forEach { it.pause() }
-
-    fun resumeMotion() = sway.forEach { it.resume() }
-
-    private fun stopSway() {
-        sway.forEach { it.cancel() }
-        sway.clear()
-        holder.animate().rotationX(0f).rotationY(0f).setDuration(200).start()
-        glass.tilt = 0f
     }
 
     companion object {
         const val IDLE_GLASS = 0.3f
-        const val RING_GAP = 4f
+        const val RING_GAP = 1f
     }
 }

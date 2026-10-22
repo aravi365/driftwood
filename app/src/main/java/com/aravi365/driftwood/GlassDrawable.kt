@@ -63,3 +63,37 @@ class GlassDrawable(private val radius: Float, private val dp: Float) : Drawable
     @Deprecated("Deprecated in Java")
     override fun getOpacity() = PixelFormat.TRANSLUCENT
 }
+
+/**
+ * Focus ring: a thin glass edge (brighter at the top, as if lit from above) with a soft light
+ * glow around it. The card's own glass overlay provides the tint.
+ */
+class GlowRingDrawable(private val radius: Float, private val dp: Float) : Drawable() {
+    private val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3 * dp
+        color = 0x73FFFFFF
+        maskFilter = android.graphics.BlurMaskFilter(7 * dp, android.graphics.BlurMaskFilter.Blur.NORMAL)
+    }
+    private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.5f * dp }
+    private val r = RectF()
+
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        if (b.isEmpty) return
+        val half = edge.strokeWidth / 2
+        r.set(b.left + half, b.top + half, b.right - half, b.bottom - half)
+        canvas.drawRoundRect(r, radius, radius, glow)
+        edge.shader = LinearGradient(
+            0f, b.top.toFloat(), 0f, b.bottom.toFloat(),
+            0xF2FFFFFF.toInt(), 0x8CFFFFFF.toInt(), Shader.TileMode.CLAMP,
+        )
+        canvas.drawRoundRect(r, radius, radius, edge)
+    }
+
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(colorFilter: ColorFilter?) {}
+
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity() = PixelFormat.TRANSLUCENT
+}
