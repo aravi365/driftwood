@@ -550,12 +550,14 @@ class MainActivity : Activity() {
         Thread {
             val photo = Backgrounds.next(this) ?: return@Thread topUpPhotos()
             val bmp = Backgrounds.decode(photo, maxW) ?: return@Thread
-            val tint = bmp.averageColor().withValue(0.22f, 0.8f)
+            val average = bmp.averageColor()
+            val tint = average.withValue(0.22f, 0.8f)
             runOnUiThread {
                 current?.file?.delete()
                 current = photo
                 shownAt = System.currentTimeMillis()
                 showPhoto(bmp, photo.caption, tint)
+                credit.setTextColor(average.blendedText(0x8C))
             }
             topUpPhotos()
         }.start()

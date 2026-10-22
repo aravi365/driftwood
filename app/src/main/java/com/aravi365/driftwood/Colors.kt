@@ -47,3 +47,21 @@ fun Int.withValue(maxValue: Float, satScale: Float = 1f): Int {
     hsv[2] = hsv[2].coerceAtMost(maxValue)
     return Color.HSVToColor(hsv)
 }
+
+/** A pale, low-key version of this colour with [alpha], so small text blends into the photo it sits on. */
+fun Int.blendedText(alpha: Int): Int {
+    val hsv = FloatArray(3)
+    Color.colorToHSV(this, hsv)
+    hsv[1] = hsv[1].coerceAtMost(0.3f)
+    hsv[2] = 0.92f
+    return (Color.HSVToColor(hsv) and 0x00FFFFFF) or (alpha shl 24)
+}
+
+/** Average colour of one corner of the photo, e.g. where a caption will sit. */
+fun Bitmap.regionColor(left: Float, top: Float, right: Float, bottom: Float): Int {
+    val x = (width * left).toInt()
+    val y = (height * top).toInt()
+    val w = ((width * right).toInt() - x).coerceAtLeast(1)
+    val h = ((height * bottom).toInt() - y).coerceAtLeast(1)
+    return Bitmap.createBitmap(this, x, y, w, h).averageColor()
+}
