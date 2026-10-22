@@ -29,10 +29,10 @@ class PowerService : AccessibilityService() {
 
         fun enabled(ctx: Context) = running != null
 
-        /** Standby, like holding power on the remote. Falls back to the system power menu. */
-        fun turnOff(): Boolean {
-            val s = running ?: return false
-            return s.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) || s.performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
-        }
+        /**
+         * Standby, like a short press of power on the remote. Deliberately not the system power
+         * menu: on some TVs its shutdown dialog crashes the system when it's dismissed.
+         */
+        fun turnOff(): Boolean = running?.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) ?: false
     }
 }
