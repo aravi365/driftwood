@@ -399,7 +399,15 @@ class MainActivity : Activity() {
             t.setOnClickListener { open(Intent(Settings.ACTION_SETTINGS)) }
             t.setOnLongClickListener { showDriftwoodMenu(); true }
         }
-        tiles = appTiles + settings
+        // Voice search, for anyone who hasn't found the mic button on the remote.
+        val search = Intent(Intent.ACTION_ASSIST).takeIf { it.resolveActivity(packageManager) != null }
+            ?: Intent("android.search.action.GLOBAL_SEARCH").takeIf { it.resolveActivity(packageManager) != null }
+        val searchTile = search?.let { intent ->
+            Tile(this, "Search", null, getDrawable(R.drawable.ic_mic), w, h, 0xFF3A6FD8.toInt()).also { t ->
+                t.setOnClickListener { open(intent) }
+            }
+        }
+        tiles = appTiles + listOfNotNull(searchTile) + settings
 
         tiles.chunked(COLUMNS).forEachIndexed { r, rowTiles ->
             val row = LinearLayout(this).apply {
