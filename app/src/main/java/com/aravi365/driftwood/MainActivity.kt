@@ -296,7 +296,12 @@ class MainActivity : Activity() {
                 .setMessage("Android only lets system apps turn the TV off. To use this button, turn on " +
                     "\"${getString(R.string.power_service_label)}\" in Settings > Accessibility. " +
                     "It only presses the power button for you, and reads nothing on screen.")
-                .setPositiveButton("Open Accessibility") { _, _ -> openFirst(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                .setPositiveButton("Open Accessibility") { _, _ ->
+                    openFirst(
+                        Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.oemlink.AccessibilitySettingsActivity"),
+                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
+                    )
+                }
                 .setNegativeButton("Cancel", null)
                 .show()
             return
@@ -364,7 +369,9 @@ class MainActivity : Activity() {
     /** Vendor settings screens differ between TVs, so try the specific one and fall back. */
     private fun openFirst(vararg intents: Intent) {
         for (i in intents) {
-            if (i.resolveActivity(packageManager) == null) continue
+            // Google TV answers some settings actions with an empty "no app installed" stub.
+            val target = i.resolveActivity(packageManager) ?: continue
+            if (target.packageName == STUBS) continue
             try {
                 startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 hideQuick()
@@ -739,7 +746,10 @@ class MainActivity : Activity() {
                         .setMessage("Turn on Driftwood under Settings > Apps > Special app access > Install unknown apps, or from a computer:\n\n" +
                             "adb shell appops set $packageName REQUEST_INSTALL_PACKAGES allow")
                         .setPositiveButton("Open settings") { _, _ ->
-                            openFirst(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                            openFirst(
+                                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")),
+                                Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.device.apps.specialaccess.SpecialAppAccessActivity"),
+                            )
                         }
                         .setNegativeButton("Later", null)
                         .show()
@@ -821,5 +831,6 @@ class MainActivity : Activity() {
         const val PHOTO_MS = 120_000L
         const val REQ_PHOTOS = 7
         const val TV_SETTINGS = "com.android.tv.settings"
+        const val STUBS = "com.google.android.tv.frameworkpackagestubs"
     }
 }
