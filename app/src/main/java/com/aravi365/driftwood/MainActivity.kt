@@ -179,9 +179,24 @@ class MainActivity : Activity() {
         photos = Backgrounds.cached(this)
     }
 
+    /**
+     * Some TVs bring the home screen back flagged as see-through (after an update, or when it's
+     * restored behind another screen). The app you just left then stays drawn on top and Back and
+     * Home seem to do nothing. Insist on opaque every time we come to the front.
+     */
+    private fun stayOpaque() {
+        if (Build.VERSION.SDK_INT >= 30) setTranslucent(false)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        stayOpaque()
+    }
+
     override fun onResume() {
         super.onResume()
         resumed = true
+        stayOpaque()
         Updater.check(this) { it?.let(::offerUpdate) }
         Weather.refresh(prefs) { showWeather(it) }
         kenBurns.forEach { it?.resume() }
