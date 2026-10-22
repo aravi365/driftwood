@@ -24,7 +24,7 @@ object TileArt {
     private fun dir(ctx: Context) = File(ctx.getExternalFilesDir(null), "tiles").apply { mkdirs() }
 
     private fun file(ctx: Context, key: String) =
-        File(dir(ctx), key.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".png")
+        File(dir(ctx), safeName(key) + ".png")
 
     fun load(ctx: Context, key: String): Drawable? {
         val f = file(ctx, key)
@@ -33,6 +33,12 @@ object TileArt {
     }
 
     fun clear(ctx: Context, key: String) = file(ctx, key).delete()
+
+    /** Keys that have a custom picture, from one listing of the folder (shared storage is slow). */
+    fun keys(ctx: Context): Set<String> =
+        dir(ctx).list()?.filter { it.endsWith(".png") }?.map { it.removeSuffix(".png") }?.toSet() ?: emptySet()
+
+    fun safeName(key: String) = key.replace(Regex("[^A-Za-z0-9._-]"), "_")
 
     /** Recent photos on the TV, newest first (LocalSend and USB copies land here). */
     fun recentImages(ctx: Context): List<Image> {

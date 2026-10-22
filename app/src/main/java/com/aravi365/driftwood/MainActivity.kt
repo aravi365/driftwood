@@ -82,15 +82,30 @@ class MainActivity : Activity() {
         override fun onReceive(c: Context, i: Intent) {
             i.data?.schemeSpecificPart?.let { art.remove(it) }
             shownKey = null
-            reload()
+            reloadSoon()
         }
+    }
+
+    private val reloadTask = Runnable { reloadIfChanged() }
+
+    /** Installs and input changes arrive in bursts (and once on start-up); rebuild once, after they settle. */
+    private fun reloadSoon() {
+        main.removeCallbacks(reloadTask)
+        main.postDelayed(reloadTask, 400)
+    }
+
+    /** Skip the rebuild (and the focus jump it causes) when nothing visible changed. */
+    private fun reloadIfChanged() {
+        val before = visible.map { it.pkg to it.label }
+        reload(rebuild = false)
+        if (visible.map { it.pkg to it.label } != before) buildGrid()
     }
 
     /** Plugging a device in or out of an HDMI port adds or removes its tile. */
     private val inputWatcher = object : TvInputManager.TvInputCallback() {
-        override fun onInputStateChanged(inputId: String, state: Int) = reload()
-        override fun onInputAdded(inputId: String) = reload()
-        override fun onInputRemoved(inputId: String) = reload()
+        override fun onInputStateChanged(inputId: String, state: Int) = reloadSoon()
+        override fun onInputAdded(inputId: String) = reloadSoon()
+        override fun onInputRemoved(inputId: String) = reloadSoon()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -149,7 +164,6 @@ class MainActivity : Activity() {
         resumed = true
         Weather.refresh(prefs) { showWeather(it) }
         kenBurns.forEach { it?.resume() }
-        tiles.forEach { it.resumeMotion() }
         main.removeCallbacks(rotate)
         if (photos.isNotEmpty()) main.post(rotate)
         Thread {
@@ -166,7 +180,6 @@ class MainActivity : Activity() {
         // Nothing animates behind a playing video.
         main.removeCallbacks(rotate)
         kenBurns.forEach { it?.pause() }
-        tiles.forEach { it.pauseMotion() }
         super.onPause()
     }
 
@@ -326,20 +339,21 @@ class MainActivity : Activity() {
 
     // ---- building the grid ----
 
-    private fun reload() {
+    private fun reload(rebuild: Boolean = true) {
         val installed = AppRepo.load(this)
         val labels = prefs.labels
+        val custom = TileArt.keys(this)
         val byPkg = installed.associateBy { it.pkg }.mapValues { (pkg, app) ->
             app.copy(
                 label = labels[pkg] ?: app.label,
-                banner = TileArt.load(this, pkg) ?: app.banner,
+                banner = (if (TileArt.safeName(pkg) in custom) TileArt.load(this, pkg) else null) ?: app.banner,
             )
         }
         val hidden = prefs.hidden
         val order = prefs.order
         visible = order.mapNotNull { byPkg[it] }.filter { it.pkg !in hidden } +
             byPkg.values.filter { it.pkg !in order && it.pkg !in hidden }.sortedBy { it.label.lowercase() }
-        buildGrid()
+        if (rebuild) buildGrid()
     }
 
     private fun buildGrid() {

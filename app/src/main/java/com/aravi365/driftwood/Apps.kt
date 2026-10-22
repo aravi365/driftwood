@@ -2,6 +2,13 @@ package com.aravi365.driftwood
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ResolveInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import java.io.File
+import java.util.Locale
+import org.json.JSONObject
 import android.graphics.drawable.Drawable
 import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
@@ -21,6 +28,7 @@ object AppRepo {
     fun load(ctx: Context): List<App> {
         val pm = ctx.packageManager
         val out = LinkedHashMap<String, App>()
+        val cache = ArtCache(ctx)
         // The grid already ends with its own Settings tile, so skip the system Settings app.
         val settingsPkg = pm.resolveActivity(Intent(Settings.ACTION_SETTINGS), 0)?.activityInfo?.packageName
         for (cat in arrayOf(Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER)) {
@@ -32,15 +40,17 @@ object AppRepo {
                     .addCategory(cat)
                     .setClassName(ai.packageName, ai.name)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                val (label, banner, icon) = cache.get(ri)
                 out[ai.packageName] = App(
                     pkg = ai.packageName,
-                    label = ri.loadLabel(pm).toString(),
+                    label = label,
                     launch = launch,
-                    banner = ai.loadBanner(pm) ?: ai.applicationInfo.loadBanner(pm),
-                    icon = ri.loadIcon(pm),
+                    banner = banner,
+                    icon = icon,
                 )
             }
         }
+        cache.save()
         return out.values.toList() + inputs(ctx)
     }
 
@@ -113,5 +123,48 @@ class Prefs(ctx: Context) {
             "com.netflix.ninja",
             "com.amazon.amazonvideo.livingroom",
         )
+    }
+}
+
+/**
+ * Each app's name and banner (or icon, for apps without one), kept on disk per app version and
+ * language. Loading them means opening every other app's package, which is most of a cold start;
+ * a small PNG and a line of JSON are far cheaper.
+ */
+private class ArtCache(private val ctx: Context) {
+    private val dir = File(ctx.cacheDir, "art").apply { mkdirs() }
+    private val indexFile = File(dir, "index.json")
+    private val index = try { JSONObject(indexFile.readText()) } catch (e: Exception) { JSONObject() }
+    private var dirty = false
+
+    fun get(ri: ResolveInfo): Triple<String, Drawable?, Drawable> {
+        val ai = ri.activityInfo
+        val stamp = "${File(ai.applicationInfo.sourceDir).lastModified()}-${Locale.getDefault().toLanguageTag()}"
+        val entry = index.optJSONObject(ai.packageName)
+        if (entry != null && entry.optString("stamp") == stamp) {
+            val f = File(dir, entry.getString("file"))
+            BitmapFactory.decodeFile(f.path)?.let { BitmapDrawable(ctx.resources, it) }?.let { art ->
+                val label = entry.getString("label")
+                return if (entry.getBoolean("banner")) Triple(label, art, art) else Triple(label, null, art)
+            }
+        }
+
+        val pm = ctx.packageManager
+        entry?.optString("file")?.let { File(dir, it).delete() }
+        val label = ri.loadLabel(pm).toString()
+        val banner = ai.loadBanner(pm) ?: ai.applicationInfo.loadBanner(pm)
+        val icon = if (banner == null) ri.loadIcon(pm) else banner
+        val name = "${ai.packageName}_${stamp.hashCode().toUInt()}.png"
+        val bmp = banner?.render(384, 216) ?: icon.render(192, 192, 0)
+        try {
+            File(dir, name).outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            index.put(ai.packageName, JSONObject().put("stamp", stamp).put("label", label).put("file", name).put("banner", banner != null))
+            dirty = true
+        } catch (e: Exception) { }
+        return Triple(label, banner, icon)
+    }
+
+    fun save() {
+        if (dirty) try { indexFile.writeText(index.toString()) } catch (e: Exception) { }
     }
 }
