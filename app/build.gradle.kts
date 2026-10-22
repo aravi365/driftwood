@@ -13,12 +13,23 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    // Release key lives outside the repo, in ~/.gradle/gradle.properties (see README).
+    // Without it, release builds fall back to the debug key so anyone can still build.
+    val storeFile = providers.gradleProperty("DRIFTWOOD_STORE_FILE").orNull
+    signingConfigs {
+        if (storeFile != null) create("release") {
+            this.storeFile = file(storeFile)
+            storePassword = providers.gradleProperty("DRIFTWOOD_STORE_PASSWORD").get()
+            keyAlias = providers.gradleProperty("DRIFTWOOD_KEY_ALIAS").get()
+            keyPassword = providers.gradleProperty("DRIFTWOOD_KEY_PASSWORD").get()
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
