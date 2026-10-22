@@ -95,6 +95,10 @@ class Prefs(ctx: Context) {
         }
         set(v) = sp.edit().putString("labels", org.json.JSONObject(v).toString()).apply()
 
+    var sun: Pair<Int, Int>?
+        get() = if (sp.contains("sunrise")) sp.getInt("sunrise", 0) to sp.getInt("sunset", 0) else null
+        set(v) { if (v != null) sp.edit().putInt("sunrise", v.first).putInt("sunset", v.second).apply() }
+
     val weatherAge: Long
         get() = System.currentTimeMillis() - sp.getLong("weather_at", 0)
 

@@ -23,9 +23,29 @@ object Weather {
             val line = try { fetch(city) } catch (e: Exception) { null }
             main.post {
                 if (line != null) prefs.weather = line
+                sun?.let { prefs.sun = it }
                 done(line ?: prefs.weather)
             }
         }.start()
+    }
+
+    /** Today's sunrise and sunset in minutes after midnight, picked up with each weather fetch. */
+    @Volatile private var sun: Pair<Int, Int>? = null
+
+    /** After sunset or before sunrise. Falls back to 6:30 pm – 6:30 am until the first fetch. */
+    fun isEvening(prefs: Prefs): Boolean {
+        val (rise, set) = prefs.sun ?: (6 * 60 + 30 to 18 * 60 + 30)
+        val c = java.util.Calendar.getInstance()
+        val now = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE)
+        return now < rise || now >= set
+    }
+
+    /** Dimmer and warmer, easier on the eyes in a dark room. [strength] 1 = home, more for the screensaver. */
+    fun eveningFilter(strength: Float = 1f): android.graphics.ColorMatrixColorFilter {
+        fun k(v: Float) = 1f - (1f - v) * strength
+        return android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply {
+            setScale(k(0.80f), k(0.70f), k(0.54f), 1f)
+        })
     }
 
     private fun fetch(city: String?): String {
@@ -41,8 +61,14 @@ object Weather {
             val ip = get("https://ipwho.is/")
             lat = ip.getDouble("latitude"); lon = ip.getDouble("longitude"); name = ip.getString("city")
         }
-        val now = get("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,weather_code&timezone=auto")
-            .getJSONObject("current")
+        val json = get("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,weather_code&daily=sunrise,sunset&forecast_days=1&timezone=auto")
+        val now = json.getJSONObject("current")
+        json.optJSONObject("daily")?.let { d ->
+            // "2026-10-23T18:04" -> minutes after midnight, local time
+            fun minutes(key: String) = d.getJSONArray(key).getString(0).substring(11, 16)
+                .split(":").let { it[0].toInt() * 60 + it[1].toInt() }
+            sun = minutes("sunrise") to minutes("sunset")
+        }
         val temp = now.getDouble("temperature_2m").roundToInt()
         val (symbol, words) = describe(now.getInt("weather_code"))
         return "$symbol  $temp°  $words · $name"

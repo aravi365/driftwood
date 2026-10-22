@@ -71,6 +71,7 @@ class MainActivity : Activity() {
     private val kenBurns = arrayOfNulls<ObjectAnimator>(2)
     private val rotate = object : Runnable {
         override fun run() {
+            applyEvening()
             nextPhoto()
             Weather.refresh(prefs) { showWeather(it) }  // cached; only hits the network every 30 min
             main.postDelayed(this, PHOTO_MS)
@@ -430,6 +431,17 @@ class MainActivity : Activity() {
     }
 
     // ---- rotating wallpapers ----
+
+    private var evening: Boolean? = null
+
+    /** Dim and warm the wallpaper between sunset and sunrise; checked with every photo change. */
+    private fun applyEvening() {
+        val now = Weather.isEvening(prefs)
+        if (now == evening) return
+        evening = now
+        val filter = if (now) Weather.eveningFilter() else null
+        backdrops.forEach { it.colorFilter = filter }
+    }
 
     private fun nextPhoto() {
         if (photos.isEmpty()) return

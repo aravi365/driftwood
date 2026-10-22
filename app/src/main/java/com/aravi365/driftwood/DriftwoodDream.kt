@@ -115,6 +115,8 @@ class DriftwoodDream : DreamService() {
         setContentView(root)
 
         val prefs = Prefs(this)
+        // Evenings get a darker, warmer screensaver.
+        if (Weather.isEvening(prefs)) shots.forEach { it?.colorFilter = Weather.eveningFilter(1.6f) }
         weather.text = prefs.weather.orEmpty()
         Weather.refresh(prefs) { weather.text = it.orEmpty() }
         photos = Backgrounds.cached(this)
