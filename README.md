@@ -11,16 +11,22 @@ I built it because the stock home screen felt slow and crowded with ads, and I w
 - **Your apps in a clean 5-wide grid.** TV apps show their full banner, phone-only apps get a tile coloured from their icon.
 - **A new photo every two minutes.** Bing's photo of the day (8 a day) or Unsplash, with a slow zoom and drift. The caption sits small in the corner.
 - **Weather** for where you are, worked out from your connection. You can type a city instead.
-- **A simple focus style.** The selected app lifts, a white border wraps it, a light sweep passes over it and it gently sways.
+- **A calm focus style.** The selected app lifts a little inside a thin glass edge with a soft glow, and a light sweep passes over it.
 - **A sticky top bar.** Scroll down and the time, date and weather stay at the top while the shelf fades away.
-- **HDMI tiles** that switch the TV straight to that input.
+- **Quick settings.** Press Up from the top row for Wi-Fi, Bluetooth, picture, sound, inputs, screensaver and settings.
+- **Evening mode.** After sunset (real sunset times for your location) the wallpaper dims and warms, and the screensaver goes darker.
+- **HDMI tiles** that switch the TV straight to that input. They hide themselves when nothing is plugged in, on TVs that report it.
+- **Your own tiles.** Rename any tile or give it a picture of your own.
+- **A Search tile** that opens Google Assistant.
 - **A screensaver** with the same photos, plus a clock that moves every 30 seconds so nothing burns in.
-- **Hold OK on any app** to move it, hide it or open its app info.
-- **Light on the TV.** No Google Play Services, no tracking and no accounts. Everything stops animating when you open an app, so playback isn't slowed down.
+- **Hold OK on any app** to move, rename, re-picture or hide it, or open its app info.
+- **Comes back where you left.** Press Home inside YouTube and you land on the YouTube tile.
+- **Updates itself** from this repo's releases, so you only need a computer once.
+- **Light on the TV.** No Google Play Services, no tracking and no accounts. App names and banners are cached, and everything stops animating when you open an app, so playback isn't slowed down.
 
-| Scrolled down | All apps |
+| Quick settings | Scrolled down |
 | --- | --- |
-| ![Sticky bar](docs/screenshots/sticky-bar.jpg) | ![All apps](docs/screenshots/all-apps.jpg) |
+| ![Quick settings](docs/screenshots/quick-settings.jpg) | ![Sticky bar](docs/screenshots/sticky-bar.jpg) |
 
 | Hold OK on an app | Hold OK on Settings |
 | --- | --- |
@@ -75,7 +81,16 @@ adb shell settings put secure screensaver_components com.aravi365.driftwood/.Dri
 
 Or pick **Driftwood** in **Settings → System → Ambient mode / Screen saver**.
 
-### 6. Make the whole TV feel faster (optional)
+### 6. Allow updates and "Most used first" (optional)
+
+```bash
+adb shell appops set com.aravi365.driftwood REQUEST_INSTALL_PACKAGES allow
+adb shell appops set com.aravi365.driftwood GET_USAGE_STATS allow
+```
+
+The first lets Driftwood install its own updates. The second is only needed for the **Most used first** order. TVs hide both switches, which is why this uses adb.
+
+### 7. Make the whole TV feel faster (optional)
 
 ```bash
 adb shell settings put global window_animation_scale 0.5
@@ -88,9 +103,11 @@ adb shell settings put global animator_duration_scale 0.5
 | Do this | To |
 | --- | --- |
 | **OK** on a tile | Open the app or switch to that HDMI input |
-| **Hold OK** on a tile | Move it to the front, left or right, hide it, or open App info |
-| **Hold OK** on the Settings tile | Set the weather city, choose wallpapers, bring back a hidden app, open screensaver settings |
-| **Back** or **Home** | Jump back to the first app |
+| **Hold OK** on a tile | Move, rename, change picture, hide, or open App info |
+| **Up** from the top row | Quick settings |
+| **Hold OK** on the Settings tile | Weather location, wallpapers, app order, hidden apps, screensaver, check for updates |
+| **Home** inside an app | Back to that app's tile |
+| **Back** or **Home** on the home screen | Jump back to the first app |
 
 The first row is your dock. Move the apps you use most there.
 
@@ -102,7 +119,11 @@ By default the location comes from your internet connection (via [ipwho.is](http
 adb shell am start -n com.aravi365.driftwood/.MainActivity --es city "Kochi"
 ```
 
-Pass an empty city (`--es city ""`) to go back to automatic.
+To go back to automatic, choose **Use my location** in the same dialog, or pass an empty city. Note the inner quotes, which adb needs to send an empty value:
+
+```bash
+adb shell "am start -n com.aravi365.driftwood/.MainActivity --es city ''"
+```
 
 ### Wallpapers
 
@@ -112,7 +133,29 @@ Choose **Bing photo of the day** or **Unsplash** under **Settings → Wallpapers
 adb shell am start -n com.aravi365.driftwood/.MainActivity --es wallpapers unsplash
 ```
 
-Photos are cached and refreshed at most every six hours.
+Photos are cached and refreshed at most every six hours. Between sunset and sunrise they're dimmed and warmed automatically.
+
+### Your own tile pictures and names
+
+Hold OK on a tile and choose **Rename** or **Change picture**. Pictures can be any photo on the TV: send one from your phone with LocalSend, or copy it from a USB stick. It's cropped to the tile's 16:9 shape. **Use original picture** undoes it.
+
+You can also push a picture from a computer, named after the app's package:
+
+```bash
+adb push banner.png /sdcard/Android/data/com.aravi365.driftwood/files/tiles/com.vt.miracast.png
+```
+
+### Quick settings
+
+Press **Up** from the top row. Wi-Fi, Bluetooth, Picture and Sound open the TV's own screens for those, and Inputs lists every HDMI input, including ones you've hidden. Some TVs also open their own quick panel when you press **Menu**, so Driftwood uses Up.
+
+### App order
+
+**My order** (default) is however you arranged things. **Most used first** sorts by time spent in each app over the last 30 days, and needs the usage permission from step 6.
+
+### Updates
+
+Driftwood checks this repo's latest release twice a day. When there's a newer version it asks, downloads it and hands it to the TV's installer, which asks once to confirm. You can also check yourself with **Settings → Check for updates**.
 
 ## Casting from an iPhone
 
@@ -156,7 +199,18 @@ Needs JDK 17 and the Android SDK (platform 35).
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-The code is plain Kotlin and Android views, with no libraries. Start with `MainActivity.kt` for the home screen, `Tile.kt` for the focus animation and `DriftwoodDream.kt` for the screensaver.
+Release builds are signed with a key kept outside the repo, in `~/.gradle/gradle.properties`:
+
+```properties
+DRIFTWOOD_STORE_FILE=/path/to/driftwood-release.jks
+DRIFTWOOD_STORE_PASSWORD=...
+DRIFTWOOD_KEY_ALIAS=driftwood
+DRIFTWOOD_KEY_PASSWORD=...
+```
+
+Without it the build falls back to the debug key. That's fine for trying it, but Android only installs updates signed with the same key. A build of your own can't update over the release APK, so uninstall one before installing the other.
+
+The code is plain Kotlin and Android views, with no libraries. Start with `MainActivity.kt` for the home screen, `Tile.kt` for the focus animation, `QuickPanel.kt` for quick settings, `Updater.kt` for updates and `DriftwoodDream.kt` for the screensaver.
 
 ## Notes
 
