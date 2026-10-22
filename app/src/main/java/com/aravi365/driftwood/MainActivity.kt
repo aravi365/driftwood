@@ -286,7 +286,30 @@ class MainActivity : Activity() {
             openFirst(Intent().setClassName("com.android.systemui", "com.android.systemui.Somnambulator"))
         },
         QuickPanel.Item("Settings", R.drawable.ic_settings) { open(Intent(Settings.ACTION_SETTINGS)) },
+        QuickPanel.Item("Turn off", R.drawable.ic_power) { askTurnOff() },
     )
+
+    private fun askTurnOff() {
+        if (!PowerService.enabled(this)) {
+            AlertDialog.Builder(this, R.style.DriftwoodDialog)
+                .setTitle("One-time setup")
+                .setMessage("Android only lets system apps turn the TV off. To use this button, turn on " +
+                    "\"${getString(R.string.power_service_label)}\" in Settings > Accessibility. " +
+                    "It only presses the power button for you, and reads nothing on screen.")
+                .setPositiveButton("Open Accessibility") { _, _ -> openFirst(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                .setNegativeButton("Cancel", null)
+                .show()
+            return
+        }
+        AlertDialog.Builder(this, R.style.DriftwoodDialog)
+            .setTitle("Turn off the TV?")
+            .setPositiveButton("Turn off") { _, _ ->
+                hideQuick()
+                if (!PowerService.turnOff()) Toast.makeText(this, "Couldn't turn off", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
 
     private fun showQuick() {
         if (quick.visibility == View.VISIBLE) return
