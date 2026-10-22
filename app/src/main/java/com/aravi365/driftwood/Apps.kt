@@ -44,12 +44,14 @@ object AppRepo {
         return out.values.toList() + inputs(ctx)
     }
 
-    /** Physical HDMI ports as tiles that switch the TV straight to that input. */
+    /** Physical HDMI ports with something connected, as tiles that switch the TV straight to that input. */
     private fun inputs(ctx: Context): List<App> {
         val tim = ctx.getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager ?: return emptyList()
         val icon = ctx.getDrawable(R.drawable.ic_hdmi) ?: return emptyList()
         return tim.tvInputList
             .filter { it.type == TvInputInfo.TYPE_HDMI && it.parentId == null }
+            // Nothing plugged in, nothing to show. Standby still counts (a console that's asleep).
+            .filter { tim.getInputState(it.id) != TvInputManager.INPUT_STATE_DISCONNECTED }
             .map { info ->
                 val launch = Intent(Intent.ACTION_VIEW)
                     .setDataAndType(TvContract.buildChannelUriForPassthroughInput(info.id), TvContract.Channels.CONTENT_ITEM_TYPE)

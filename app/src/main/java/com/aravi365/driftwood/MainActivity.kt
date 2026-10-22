@@ -16,6 +16,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.media.tv.TvInputManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -82,6 +83,13 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Plugging a device in or out of an HDMI port adds or removes its tile. */
+    private val inputWatcher = object : TvInputManager.TvInputCallback() {
+        override fun onInputStateChanged(inputId: String, state: Int) = reload()
+        override fun onInputAdded(inputId: String) = reload()
+        override fun onInputRemoved(inputId: String) = reload()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -120,6 +128,8 @@ class MainActivity : Activity() {
         }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(packageReceiver, filter, RECEIVER_EXPORTED)
         else registerReceiver(packageReceiver, filter)
+
+        (getSystemService(TV_INPUT_SERVICE) as? TvInputManager)?.registerCallback(inputWatcher, main)
 
         reload()
         applyExtras(intent)
@@ -183,6 +193,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         unregisterReceiver(packageReceiver)
+        (getSystemService(TV_INPUT_SERVICE) as? TvInputManager)?.unregisterCallback(inputWatcher)
         super.onDestroy()
     }
 
