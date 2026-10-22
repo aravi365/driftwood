@@ -1,0 +1,24 @@
+<resources>
+    <!-- Explicitly opaque: this TV's DeviceDefault theme is translucent, which keeps the last app drawn over home. -->
+    <style name="Driftwood" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowSwipeToDismiss">false</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:fontFamily">@font/google_sans_flex</item>
+        <item name="android:textViewStyle">@style/DriftwoodText</item>
+        <item name="android:alertDialogTheme">@style/DriftwoodDialog</item>
+    </style>
+
+    <style name="DriftwoodText" parent="@android:style/Widget.Material.TextView">
+        <item name="android:fontFamily">@font/google_sans_flex</item>
+    </style>
+
+    <style name="DriftwoodDialog" parent="@android:style/Theme.DeviceDefault.Dialog.Alert">
+        <item name="android:fontFamily">@font/google_sans_flex</item>
+        <item name="android:textViewStyle">@style/DriftwoodText</item>
+    </style>
+    <dimen name="edge">64dp</dimen>
+</resources>
