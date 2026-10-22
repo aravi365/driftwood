@@ -146,6 +146,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        resumed = true
         Weather.refresh(prefs) { showWeather(it) }
         kenBurns.forEach { it?.resume() }
         tiles.forEach { it.resumeMotion() }
@@ -161,6 +162,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        resumed = false
         // Nothing animates behind a playing video.
         main.removeCallbacks(rotate)
         kenBurns.forEach { it?.pause() }
@@ -204,11 +206,22 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    /** Home pressed while already home: glide back to the first app. */
+    private var resumed = false
+
+    /**
+     * Home pressed from inside an app: come back to that app's tile.
+     * Home pressed while already home: glide back to the first app.
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         applyExtras(intent)
-        goHome()
+        hideQuick()
+        if (resumed) goHome() else focusLast()
+    }
+
+    private fun focusLast() {
+        val t = tiles.firstOrNull { focusedPkg != null && (it.tag as? App)?.pkg == focusedPkg } ?: return goHome()
+        t.post { t.requestFocus(); onTileFocused(t) }
     }
 
     // ---- quick settings ----
