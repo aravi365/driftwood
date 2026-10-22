@@ -109,6 +109,11 @@ class Prefs(ctx: Context) {
         get() = if (sp.contains("sunrise")) sp.getInt("sunrise", 0) to sp.getInt("sunset", 0) else null
         set(v) { if (v != null) sp.edit().putInt("sunrise", v.first).putInt("sunset", v.second).apply() }
 
+    /** "mine" (the order you arranged) or "used" (most used in the last 30 days first). */
+    var sortMode: String
+        get() = sp.getString("sort", "mine")!!
+        set(v) = sp.edit().putString("sort", v).apply()
+
     val weatherAge: Long
         get() = System.currentTimeMillis() - sp.getLong("weather_at", 0)
 

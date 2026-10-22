@@ -372,9 +372,17 @@ class MainActivity : Activity() {
         }
         val hidden = prefs.hidden
         val order = prefs.order
-        visible = order.mapNotNull { byPkg[it] }.filter { it.pkg !in hidden } +
+        val mine = order.mapNotNull { byPkg[it] }.filter { it.pkg !in hidden } +
             byPkg.values.filter { it.pkg !in order && it.pkg !in hidden }.sortedBy { it.label.lowercase() }
+        visible = if (prefs.sortMode == "used") byUsage(mine) else mine
         if (rebuild) buildGrid()
+    }
+
+    /** Most used apps first; unused apps and HDMI inputs keep your order after them. Stable sort. */
+    private fun byUsage(list: List<App>): List<App> {
+        val time = Usage.foregroundTime(this)
+        if (time.isEmpty()) return list
+        return list.sortedByDescending { if (it.pkg.startsWith(AppRepo.INPUT_PREFIX)) -1L else time[it.pkg] ?: 0L }
     }
 
     private fun buildGrid() {
@@ -578,10 +586,13 @@ class MainActivity : Activity() {
     private fun showAppMenu(app: App) {
         val idx = visible.indexOf(app)
         val isInput = app.pkg.startsWith(AppRepo.INPUT_PREFIX)
-        val actions = mutableListOf<Pair<String, () -> Unit>>(
+        val actions = mutableListOf<Pair<String, () -> Unit>>()
+        if (prefs.sortMode != "used") actions += listOf(
             "Move to front" to { move(idx, 0) },
             "Move left" to { move(idx, idx - 1) },
             "Move right" to { move(idx, idx + 1) },
+        )
+        actions += listOf(
             "Rename" to { askRename(app) },
             "Change picture" to { pickPicture(app) },
         )
@@ -670,19 +681,42 @@ class MainActivity : Activity() {
     }
 
     private fun showDriftwoodMenu() {
-        val options = arrayOf("Weather location", "Wallpapers", "Show a hidden app", "Screensaver")
+        val options = arrayOf("Weather location", "Wallpapers", "App order", "Show a hidden app", "Screensaver")
         AlertDialog.Builder(this, R.style.DriftwoodDialog)
             .setTitle("Driftwood")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> askCity()
                     1 -> askWallpapers()
-                    2 -> showHiddenMenu()
-                    3 -> openFirst(
+                    2 -> askOrder()
+                    3 -> showHiddenMenu()
+                    4 -> openFirst(
                         Intent(Settings.ACTION_DREAM_SETTINGS),
                         Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.device.display.daydream.DaydreamActivity"),
                     )
                 }
+            }
+            .show()
+    }
+
+    private fun askOrder() {
+        val modes = arrayOf("mine", "used")
+        AlertDialog.Builder(this, R.style.DriftwoodDialog)
+            .setTitle("App order")
+            .setSingleChoiceItems(arrayOf("My order", "Most used first"), modes.indexOf(prefs.sortMode).coerceAtLeast(0)) { d, which ->
+                d.dismiss()
+                if (modes[which] == "used" && !Usage.allowed(this)) {
+                    AlertDialog.Builder(this, R.style.DriftwoodDialog)
+                        .setTitle("One-time permission needed")
+                        .setMessage("TVs hide the usage-access switch, so grant it once from a computer:\n\n" +
+                            "adb shell appops set $packageName GET_USAGE_STATS allow\n\nThen choose Most used first again.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                    return@setSingleChoiceItems
+                }
+                prefs.sortMode = modes[which]
+                focusedPkg = null
+                reload()
             }
             .show()
     }
