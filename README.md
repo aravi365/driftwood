@@ -13,7 +13,7 @@ I built it because the stock home screen felt slow and crowded with ads, and I w
 - **Weather** for where you are, worked out from your connection. You can type a city instead.
 - **A calm focus style.** The selected app lifts a little inside a thin glass edge with a soft glow, and a light sweep passes over it.
 - **A sticky top bar.** Scroll down and the time, date and weather stay at the top while the shelf fades away.
-- **Quick settings.** Press Up from the top row for Wi-Fi, Bluetooth, picture, sound, inputs, screensaver, settings and Turn off.
+- **Quick settings.** Press Up from the top row for Wi-Fi, Bluetooth, picture, sound, inputs, screensaver, settings, Driftwood's own options and Turn off.
 - **Evening mode.** After sunset (real sunset times for your location) the wallpaper dims and warms, and the screensaver goes darker.
 - **HDMI tiles** that switch the TV straight to that input. They hide themselves when nothing is plugged in, on TVs that report it.
 - **Your own tiles.** Rename any tile or give it a picture of your own.
@@ -105,7 +105,7 @@ adb shell settings put global animator_duration_scale 0.5
 | **OK** on a tile | Open the app or switch to that HDMI input |
 | **Hold OK** on a tile | Move, rename, change picture, hide, or open App info |
 | **Up** from the top row | Quick settings |
-| **Hold OK** on the Settings tile | Weather location, wallpapers, app order, hidden apps, screensaver, check for updates |
+| **Driftwood** in quick settings, or **hold OK** on the Settings tile | Weather location, wallpapers, app order, hidden apps, screensaver, check for updates |
 | **Home** inside an app | Back to that app's tile |
 | **Back** or **Home** on the home screen | Jump back to the first app |
 
@@ -170,7 +170,7 @@ This replaces any other accessibility services you have on, so prefer the Settin
 
 ### Updates
 
-Driftwood checks this repo's latest release twice a day. When there's a newer version it asks, downloads it and hands it to the TV's installer, which asks once to confirm. You can also check yourself with **Settings → Check for updates**.
+Driftwood checks this repo's latest release twice a day. When there's a newer version it asks, downloads it and hands it to the TV's installer, which asks once to confirm. You can also check yourself: press **Up** from the top row, choose **Driftwood**, then **Check for updates**.
 
 ## Casting from an iPhone
 
