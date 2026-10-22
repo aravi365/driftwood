@@ -13,7 +13,7 @@ I built it because the stock home screen felt slow and crowded with ads, and I w
 - **Weather** for where you are, worked out from your connection. You can type a city instead.
 - **A calm focus style.** The selected app lifts a little inside a thin glass edge with a soft glow, and a light sweep passes over it.
 - **A sticky top bar.** Scroll down and the time, date and weather stay at the top while the shelf fades away.
-- **Quick settings.** Press Up from the top row for Wi-Fi, Bluetooth, picture, sound, inputs, screensaver and settings.
+- **Quick settings.** Press Up from the top row for Wi-Fi, Bluetooth, picture, sound, inputs, screensaver, settings and Turn off.
 - **Evening mode.** After sunset (real sunset times for your location) the wallpaper dims and warms, and the screensaver goes darker.
 - **HDMI tiles** that switch the TV straight to that input. They hide themselves when nothing is plugged in, on TVs that report it.
 - **Your own tiles.** Rename any tile or give it a picture of your own.
@@ -148,6 +148,19 @@ adb push banner.png /sdcard/Android/data/com.aravi365.driftwood/files/tiles/com.
 ### Quick settings
 
 Press **Up** from the top row. Wi-Fi, Bluetooth, Picture and Sound open the TV's own screens for those, and Inputs lists every HDMI input, including ones you've hidden. Some TVs also open their own quick panel when you press **Menu**, so Driftwood uses Up.
+
+### Turning the TV off
+
+**Turn off** is the last button in quick settings. Android only lets system apps power a TV down, so the first time you press it Driftwood asks you to turn on **Driftwood power button** in **Settings → Accessibility**. That small service does exactly what holding the power button on the remote does (standby), and nothing else. It doesn't read the screen or anything you type. Driftwood always asks before turning off.
+
+From a computer you can switch it on with:
+
+```bash
+adb shell settings put secure enabled_accessibility_services com.aravi365.driftwood/com.aravi365.driftwood.PowerService
+adb shell settings put secure accessibility_enabled 1
+```
+
+This replaces any other accessibility services you have on, so prefer the Settings screen if you use any.
 
 ### App order
 
