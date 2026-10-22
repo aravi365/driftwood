@@ -151,7 +151,9 @@ Press **Up** from the top row. Wi-Fi, Bluetooth, Picture and Sound open the TV's
 
 ### Turning the TV off
 
-**Turn off** is the last button in quick settings. Android only lets system apps power a TV down, so the first time you press it Driftwood asks you to turn on **Driftwood power button** in **Settings → Accessibility**. That small service does exactly what holding the power button on the remote does (standby), and nothing else. It doesn't read the screen or anything you type. Driftwood always asks before turning off.
+**Turn off** is the last button in quick settings. It opens the TV's own power menu, the same one the stock home screen's power button shows: confirm there and the TV shows "Shutting down" and powers off properly.
+
+Android only lets system apps open that menu, so the first time you press it Driftwood asks you to turn on **Driftwood power button** in **Settings → Accessibility**. That small service only opens the power menu. It doesn't read the screen or anything you type.
 
 From a computer you can switch it on with:
 

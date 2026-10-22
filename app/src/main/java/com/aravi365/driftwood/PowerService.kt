@@ -6,9 +6,9 @@ import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Apps can't turn a TV off; only system apps can. An accessibility service can do what holding
- * the remote's power button does, so this one exists only for the Turn off button. It reads no
- * screen content and handles no events.
+ * Apps can't turn a TV off; only system apps can. An accessibility service may open the system
+ * power menu, so this one exists only for the Turn off button. It reads no screen content and
+ * handles no events.
  */
 class PowerService : AccessibilityService() {
 
@@ -30,9 +30,9 @@ class PowerService : AccessibilityService() {
         fun enabled(ctx: Context) = running != null
 
         /**
-         * Standby, like a short press of power on the remote. Deliberately not the system power
-         * menu: on some TVs its shutdown dialog crashes the system when it's dismissed.
+         * Opens the TV's own power menu, the same one the stock home screen's power button shows:
+         * it asks to confirm, then shows "Shutting down". The system does the actual power off.
          */
-        fun turnOff(): Boolean = running?.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) ?: false
+        fun showPowerMenu(): Boolean = running?.performGlobalAction(GLOBAL_ACTION_POWER_DIALOG) ?: false
     }
 }

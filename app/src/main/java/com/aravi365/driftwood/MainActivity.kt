@@ -310,7 +310,7 @@ class MainActivity : Activity() {
                 .setTitle("One-time setup")
                 .setMessage("Android only lets system apps turn the TV off. To use this button, turn on " +
                     "\"${getString(R.string.power_service_label)}\" in Settings > Accessibility. " +
-                    "It only presses the power button for you, and reads nothing on screen.")
+                    "It only opens the TV's power menu, and reads nothing on screen.")
                 .setPositiveButton("Open Accessibility") { _, _ ->
                     openFirst(
                         Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.oemlink.AccessibilitySettingsActivity"),
@@ -321,14 +321,9 @@ class MainActivity : Activity() {
                 .show()
             return
         }
-        AlertDialog.Builder(this, R.style.DriftwoodDialog)
-            .setTitle("Turn off the TV?")
-            .setPositiveButton("Turn off") { _, _ ->
-                hideQuick()
-                if (!PowerService.turnOff()) Toast.makeText(this, "Couldn't turn off", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        // The TV's own power menu asks to confirm, so no second dialog here.
+        hideQuick()
+        if (!PowerService.showPowerMenu()) Toast.makeText(this, "Couldn't open the power menu", Toast.LENGTH_SHORT).show()
     }
 
     private fun showQuick() {
