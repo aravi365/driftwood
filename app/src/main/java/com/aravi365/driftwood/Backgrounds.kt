@@ -113,10 +113,20 @@ object Backgrounds {
                 val img = images.getJSONObject(i)
                 val base = img.getString("urlbase")  // "/th?id=OHR.WolvesYellowstone_EN-IN1234567890"
                 val id = "bing:" + base.substringAfter("id=").substringBefore("_")
-                out.getOrPut(id) { Candidate(id, "$BING${base}_1920x1080.jpg", img.getString("copyright")) }
+                out.getOrPut(id) { Candidate(id, "$BING${base}_1920x1080.jpg", caption(img.getString("copyright"), mkt)) }
             }
         }
         return out.values.toList()
+    }
+
+    /**
+     * Bing writes captions in each edition's own language. English editions are asked first, so
+     * a photo they share keeps its English caption; others show just the photographer and agency.
+     */
+    private fun caption(copyright: String, mkt: String): String {
+        if (mkt.startsWith("en-")) return copyright
+        val credit = copyright.substringAfterLast("(©", "").removeSuffix(")").trim()
+        return if (credit.isNotEmpty()) "© $credit" else ""
     }
 
     /** A random page of Picsum's Unsplash catalogue, with the photographer's name. */
