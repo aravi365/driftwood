@@ -173,6 +173,17 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
+        <ImageView
+            android:id="@+id/bar_offline"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+            android:alpha="0.75"
+            android:contentDescription="No internet"
+            android:src="@drawable/ic_wifi_off"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/bar_weather"
             android:layout_width="wrap_content"
@@ -209,12 +220,29 @@
             android:textColor="#B3FFFFFF"
             android:textSize="14sp" />
 
-        <TextView
-            android:id="@+id/weather"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textColor="#B3FFFFFF"
-            android:textSize="14sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/offline"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="8dp"
+                android:alpha="0.75"
+                android:contentDescription="No internet"
+                android:src="@drawable/ic_wifi_off"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/weather"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

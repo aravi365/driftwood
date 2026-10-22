@@ -108,6 +108,22 @@ class MainActivity : Activity() {
         override fun onInputRemoved(inputId: String) = reloadSoon()
     }
 
+    /** A small icon by the weather when the connection drops; weather and photos catch up when it's back. */
+    private val network = object : android.net.ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(n: android.net.Network) = main.post { setOnline(true) }.let { }
+        override fun onLost(n: android.net.Network) = main.post { setOnline(false) }.let { }
+    }
+
+    private fun setOnline(online: Boolean) {
+        val v = if (online) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.offline).visibility = v
+        findViewById<View>(R.id.bar_offline).visibility = v
+        if (online && resumed) {
+            Weather.refresh(prefs) { showWeather(it) }
+            Thread { if (Backgrounds.refresh(this)) runOnUiThread { photos = Backgrounds.cached(this) } }.start()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -152,6 +168,10 @@ class MainActivity : Activity() {
         else registerReceiver(packageReceiver, filter)
 
         (getSystemService(TV_INPUT_SERVICE) as? TvInputManager)?.registerCallback(inputWatcher, main)
+        getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
+            if (cm.activeNetwork == null) setOnline(false)
+            cm.registerDefaultNetworkCallback(network)
+        }
 
         reload()
         applyExtras(intent)
@@ -216,6 +236,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         unregisterReceiver(packageReceiver)
         (getSystemService(TV_INPUT_SERVICE) as? TvInputManager)?.unregisterCallback(inputWatcher)
+        getSystemService(android.net.ConnectivityManager::class.java).unregisterNetworkCallback(network)
         super.onDestroy()
     }
 
