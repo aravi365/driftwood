@@ -581,7 +581,7 @@ class MainActivity : Activity() {
         backdrops[front].animate().alpha(0f).setDuration(1600).start()
         front = i
 
-        credit.text = getString(R.string.photo_credit, text)
+        credit.text = text
 
         ambientAnim?.cancel()
         ambientAnim = ValueAnimator.ofArgb(ambientColor, tint).apply {

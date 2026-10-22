@@ -1,5 +1,4 @@
 <resources>
     <string name="power_service_label">Driftwood power button</string>
     <string name="power_service_description">Lets the Turn off button in Driftwood\'s quick settings open the TV\'s own power menu, where you confirm Power off. Driftwood doesn\'t read your screen or anything you type.</string>
-    <string name="photo_credit">Photo credit: %1$s</string>
 </resources>
