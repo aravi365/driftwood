@@ -65,7 +65,7 @@ class DriftwoodDream : DreamService() {
         next.animate().alpha(1f).setDuration(2500).start()
         shots[front]!!.animate().alpha(0f).setDuration(2500).start()
         front = 1 - front
-        caption.text = getString(R.string.photo_credit, p.caption)
+        caption.text = p.caption
         // Take the credit's colour from the corner it sits on, 60% transparent.
         caption.setTextColor(bmp.regionColor(0f, 0.85f, 0.5f, 1f).blendedText(0x66))
         current?.file?.delete()
