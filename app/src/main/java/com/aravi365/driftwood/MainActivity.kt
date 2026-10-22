@@ -307,15 +307,11 @@ class MainActivity : Activity() {
         if (!PowerService.enabled(this)) {
             AlertDialog.Builder(this, R.style.DriftwoodDialog)
                 .setTitle("One-time setup")
-                .setMessage("Android only lets system apps turn the TV off. To use this button, turn on " +
-                    "\"${getString(R.string.power_service_label)}\" in Settings > Accessibility. " +
-                    "It only opens the TV's power menu, and reads nothing on screen.")
-                .setPositiveButton("Open Accessibility") { _, _ ->
-                    openFirst(
-                        Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.oemlink.AccessibilitySettingsActivity"),
-                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
-                    )
-                }
+                .setMessage("Android only lets system apps turn the TV off. To use this button, open " +
+                    "Settings > System > Accessibility and turn on \"${getString(R.string.power_service_label)}\" " +
+                    "under Services. It only opens the TV's power menu, and reads nothing on screen.")
+                // Not the direct accessibility shortcut: on some TVs that page freezes when you leave it.
+                .setPositiveButton("Open Settings") { _, _ -> open(Intent(Settings.ACTION_SETTINGS)) }
                 .setNegativeButton("Cancel", null)
                 .show()
             return
