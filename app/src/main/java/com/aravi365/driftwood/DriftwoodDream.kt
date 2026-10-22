@@ -26,8 +26,7 @@ class DriftwoodDream : DreamService() {
     private lateinit var caption: TextView
     private val shots = arrayOfNulls<ImageView>(2)
     private var front = 0
-    private var index = -1
-    private var photos: List<Photo> = emptyList()
+    private var current: Photo? = null
 
     private val drift = object : Runnable {
         override fun run() {
@@ -41,27 +40,34 @@ class DriftwoodDream : DreamService() {
         }
     }
 
+    /** Same never-repeat queue as the home screen; decoding happens off the main thread. */
     private val rotate = object : Runnable {
         override fun run() {
-            if (photos.isEmpty()) return
-            index = (index + 1) % photos.size
-            val p = photos[index]
-            val bmp = Backgrounds.decode(p, resources.displayMetrics.widthPixels)
-            if (bmp != null) {
-                val next = shots[1 - front]!!
-                next.setImageBitmap(bmp)
-                ObjectAnimator.ofPropertyValuesHolder(
-                    next,
-                    PropertyValuesHolder.ofFloat(View.SCALE_X, 1.04f, 1.18f),
-                    PropertyValuesHolder.ofFloat(View.SCALE_Y, 1.04f, 1.18f),
-                ).apply { duration = 64_000; interpolator = LinearInterpolator(); start() }
-                next.animate().alpha(1f).setDuration(2500).start()
-                shots[front]!!.animate().alpha(0f).setDuration(2500).start()
-                front = 1 - front
-                caption.text = p.caption
-            }
+            val maxW = resources.displayMetrics.widthPixels
+            Thread {
+                val p = Backgrounds.next(this@DriftwoodDream)
+                val bmp = p?.let { Backgrounds.decode(it, maxW) }
+                if (p != null && bmp != null) block.post { show(p, bmp) }
+                if (Backgrounds.needsMore(this@DriftwoodDream)) Backgrounds.refresh(this@DriftwoodDream)
+            }.start()
             block.postDelayed(this, 60_000)
         }
+    }
+
+    private fun show(p: Photo, bmp: android.graphics.Bitmap) {
+        val next = shots[1 - front]!!
+        next.setImageBitmap(bmp)
+        ObjectAnimator.ofPropertyValuesHolder(
+            next,
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 1.04f, 1.18f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1.04f, 1.18f),
+        ).apply { duration = 64_000; interpolator = LinearInterpolator(); start() }
+        next.animate().alpha(1f).setDuration(2500).start()
+        shots[front]!!.animate().alpha(0f).setDuration(2500).start()
+        front = 1 - front
+        caption.text = getString(R.string.photo_credit, p.caption)
+        current?.file?.delete()
+        current = p
     }
 
     override fun onAttachedToWindow() {
@@ -82,9 +88,18 @@ class DriftwoodDream : DreamService() {
             format12Hour = "h:mm"
             format24Hour = "HH:mm"
             textSize = 96f
-            setTextColor(0xF2FFFFFF.toInt())
+            setTextColor(0xD9FFFFFF.toInt())
             typeface = Typeface.create(resources.getFont(R.font.google_sans_flex), 200, false)
-            setShadowLayer(16f, 0f, 2f, 0x80000000.toInt())
+            includeFontPadding = false
+            setShadowLayer(18f, 0f, 2f, 0x59000000)
+            // Big thin digits carry their own left spacing; pull them back so the clock lines up
+            // with the date and weather under it.
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(t: android.text.Editable?) = alignLeft(this@apply)
+            })
+            post { alignLeft(this) }
         }
         val sans = resources.getFont(R.font.google_sans_flex)
         val date = TextClock(this).apply {
@@ -92,26 +107,38 @@ class DriftwoodDream : DreamService() {
             format12Hour = "EEEE, d MMMM"
             format24Hour = "EEEE, d MMMM"
             textSize = 20f
-            setTextColor(0xCCFFFFFF.toInt())
+            setTextColor(0xB3FFFFFF.toInt())
+            includeFontPadding = false
+            setPadding(0, 10, 0, 0)
+            setShadowLayer(12f, 0f, 1f, 0x4D000000)
         }
         val weather = TextView(this).apply {
             typeface = sans
             textSize = 18f
-            setTextColor(0xB3FFFFFF.toInt())
+            setTextColor(0x99FFFFFF.toInt())
+            includeFontPadding = false
+            setPadding(0, 8, 0, 0)
+            setShadowLayer(12f, 0f, 1f, 0x4D000000)
         }
         caption = TextView(this).apply {
             typeface = sans
             textSize = 12f
-            setTextColor(0x80FFFFFF.toInt())
-            setPadding(0, 18, 0, 0)
+            setTextColor(0x66FFFFFF)  // 60% transparent
+            includeFontPadding = false
+            setShadowLayer(10f, 0f, 1f, 0x4D000000)
         }
         block = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.START
-            addView(clock); addView(date); addView(weather); addView(caption)
+            addView(clock); addView(date); addView(weather)
             alpha = 0f
         }
         root.addView(block, FrameLayout.LayoutParams(-2, -2))
+        // The credit stays put near the bottom while the clock wanders.
+        val dp = resources.displayMetrics.density
+        root.addView(caption, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {
+            setMargins((48 * dp).toInt(), 0, (48 * dp).toInt(), (28 * dp).toInt())
+        })
         setContentView(root)
 
         val prefs = Prefs(this)
@@ -119,7 +146,15 @@ class DriftwoodDream : DreamService() {
         if (Weather.isEvening(prefs)) shots.forEach { it?.colorFilter = Weather.eveningFilter(1.6f) }
         weather.text = prefs.weather.orEmpty()
         Weather.refresh(prefs) { weather.text = it.orEmpty() }
-        photos = Backgrounds.cached(this)
+    }
+
+    /** Shift a text view left by its first glyph's side bearing, so its ink starts at the edge. */
+    private fun alignLeft(v: TextView) {
+        val text = v.text?.toString().orEmpty()
+        if (text.isEmpty()) return
+        val bounds = android.graphics.Rect()
+        v.paint.getTextBounds(text, 0, 1, bounds)
+        v.translationX = -bounds.left.toFloat()
     }
 
     override fun onDreamingStarted() {

@@ -52,7 +52,6 @@ class MainActivity : Activity() {
     private lateinit var hint: View
     private val hideHint = Runnable { hint.animate().alpha(0f).setDuration(600).start() }
     private lateinit var barWeather: TextView
-    private lateinit var caption: TextView
     private lateinit var quick: FrameLayout
     private lateinit var quickPanel: QuickPanel
 
@@ -66,8 +65,11 @@ class MainActivity : Activity() {
     private var ambientColor = Color.BLACK
     private var ambientAnim: ValueAnimator? = null
     private val main = Handler(Looper.getMainLooper())
-    private var photos: List<Photo> = emptyList()
-    private var photoIndex = -1
+    /** The photo on screen now, its file kept until the next one replaces it. */
+    private var current: Photo? = null
+    private var shownAt = 0L
+    private var shownCount = 0
+    private lateinit var credit: TextView
     private val kenBurns = arrayOfNulls<ObjectAnimator>(2)
     private val rotate = object : Runnable {
         override fun run() {
@@ -120,7 +122,7 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.bar_offline).visibility = v
         if (online && resumed) {
             Weather.refresh(prefs) { showWeather(it) }
-            Thread { if (Backgrounds.refresh(this)) runOnUiThread { photos = Backgrounds.cached(this) } }.start()
+            topUpPhotos()
         }
     }
 
@@ -140,7 +142,6 @@ class MainActivity : Activity() {
         bar = findViewById(R.id.bar)
         hint = findViewById(R.id.hint)
         barWeather = findViewById(R.id.bar_weather)
-        caption = findViewById(R.id.caption)
         quick = findViewById(R.id.quick)
         quickPanel = QuickPanel(this)
         quick.addView(quickPanel, FrameLayout.LayoutParams(-1, -2))
@@ -154,7 +155,6 @@ class MainActivity : Activity() {
             shelfLayer.alpha = 0.4f + 0.6f * f
             chrome.alpha = f
             bar.alpha = 1f - f
-            caption.visibility = if (f < 0.6f) View.INVISIBLE else View.VISIBLE
             bar.translationY = -12 * dp * f
         }
 
@@ -176,7 +176,7 @@ class MainActivity : Activity() {
         reload()
         applyExtras(intent)
         showWeather(prefs.weather)
-        photos = Backgrounds.cached(this)
+        credit = findViewById(R.id.credit)
     }
 
     /**
@@ -200,14 +200,19 @@ class MainActivity : Activity() {
         Updater.check(this) { it?.let(::offerUpdate) }
         Weather.refresh(prefs) { showWeather(it) }
         kenBurns.forEach { it?.resume() }
+        // Pick up where the current photo left off rather than skipping to a new one.
         main.removeCallbacks(rotate)
-        if (photos.isNotEmpty()) main.post(rotate)
+        val left = if (current == null) 0L else (PHOTO_MS - (System.currentTimeMillis() - shownAt)).coerceAtLeast(0)
+        main.postDelayed(rotate, left)
+        topUpPhotos()
+    }
+
+    /** Fetch more unseen photos in the background when the queue runs low. */
+    private fun topUpPhotos(thenShow: Boolean = false) {
+        if (!thenShow && !Backgrounds.needsMore(this)) return
         Thread {
-            if (Backgrounds.refresh(this)) runOnUiThread {
-                val first = photos.isEmpty()
-                photos = Backgrounds.cached(this)
-                if (first && photos.isNotEmpty()) { main.removeCallbacks(rotate); main.post(rotate) }
-            }
+            Backgrounds.refresh(this)
+            if (thenShow || current == null) runOnUiThread { main.removeCallbacks(rotate); main.post(rotate) }
         }.start()
     }
 
@@ -228,14 +233,7 @@ class MainActivity : Activity() {
     /** Switch wallpaper source and fetch the new set right away. */
     private fun setWallpapers(source: String) {
         Backgrounds.setSource(this, source)
-        Thread {
-            if (Backgrounds.refresh(this)) runOnUiThread {
-                photos = Backgrounds.cached(this)
-                photoIndex = -1
-                main.removeCallbacks(rotate)
-                main.post(rotate)
-            }
-        }.start()
+        topUpPhotos(thenShow = true)
     }
 
     private fun showWeather(line: String?) {
@@ -333,7 +331,6 @@ class MainActivity : Activity() {
         quick.translationY = -24 * dp
         quick.animate().alpha(1f).translationY(0f).setDuration(220).start()
         chrome.animate().alpha(0f).setDuration(160).start()
-        caption.animate().alpha(0f).setDuration(160).start()
         quickPanel.focusFirst()
     }
 
@@ -341,7 +338,6 @@ class MainActivity : Activity() {
         if (quick.visibility != View.VISIBLE) return
         quick.animate().alpha(0f).translationY(-24 * dp).setDuration(180).withEndAction { quick.visibility = View.GONE }.start()
         chrome.animate().alpha(if (scroll.scrollY == 0) 1f else 0f).setDuration(220).start()
-        caption.animate().alpha(1f).setDuration(220).start()
         (tiles.firstOrNull { focusedPkg != null && (it.tag as? App)?.pkg == focusedPkg } ?: tiles.firstOrNull())?.requestFocus()
     }
 
@@ -516,7 +512,7 @@ class MainActivity : Activity() {
         title.alpha = 0f
         title.translationX = 16 * dp
         title.animate().alpha(1f).translationX(0f).setDuration(320).start()
-        if (photos.isNotEmpty()) return
+        if (current != null) return
 
         // No wallpapers yet (offline): cross-fade the blurred app art instead.
         val next = backdrops[1 - front]
@@ -548,15 +544,20 @@ class MainActivity : Activity() {
         backdrops.forEach { it.colorFilter = filter }
     }
 
+    /** Each photo is shown once, ever. When the queue is empty the current one simply stays. */
     private fun nextPhoto() {
-        if (photos.isEmpty()) return
-        photoIndex = (photoIndex + 1) % photos.size
-        val photo = photos[photoIndex]
         val maxW = resources.displayMetrics.widthPixels
         Thread {
+            val photo = Backgrounds.next(this) ?: return@Thread topUpPhotos()
             val bmp = Backgrounds.decode(photo, maxW) ?: return@Thread
             val tint = bmp.averageColor().withValue(0.22f, 0.8f)
-            runOnUiThread { showPhoto(bmp, photo.caption, tint) }
+            runOnUiThread {
+                current?.file?.delete()
+                current = photo
+                shownAt = System.currentTimeMillis()
+                showPhoto(bmp, photo.caption, tint)
+            }
+            topUpPhotos()
         }.start()
     }
 
@@ -567,7 +568,7 @@ class MainActivity : Activity() {
         kenBurns[i]?.cancel()
         next.setImageBitmap(bmp)
         next.scaleX = 1.02f; next.scaleY = 1.02f; next.translationX = 0f
-        val dx = (if (photoIndex % 2 == 0) 1 else -1) * 40 * dp
+        val dx = (if (shownCount++ % 2 == 0) 1 else -1) * 40 * dp
         kenBurns[i] = ObjectAnimator.ofPropertyValuesHolder(
             next,
             PropertyValuesHolder.ofFloat(View.SCALE_X, 1.02f, 1.14f),
@@ -578,10 +579,7 @@ class MainActivity : Activity() {
         backdrops[front].animate().alpha(0f).setDuration(1600).start()
         front = i
 
-        caption.animate().alpha(0f).setDuration(400).withEndAction {
-            caption.text = text
-            caption.animate().alpha(1f).setDuration(800).start()
-        }.start()
+        credit.text = getString(R.string.photo_credit, text)
 
         ambientAnim?.cancel()
         ambientAnim = ValueAnimator.ofArgb(ambientColor, tint).apply {

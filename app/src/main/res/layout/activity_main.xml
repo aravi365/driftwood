@@ -37,19 +37,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@drawable/scrim_left" />
-
-        <TextView
-            android:id="@+id/caption"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top|start"
-            android:layout_marginStart="@dimen/edge"
-            android:layout_marginTop="44dp"
-            android:maxWidth="560dp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textColor="#66FFFFFF"
-            android:textSize="11sp" />
     </FrameLayout>
 
     <com.aravi365.driftwood.FocusScrollView
@@ -66,7 +53,7 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="vertical"
-            android:paddingBottom="120dp">
+            android:paddingBottom="48dp">
 
             <FrameLayout
                 android:id="@+id/shelf"
@@ -118,6 +105,17 @@
                 android:paddingStart="@dimen/edge"
                 android:paddingTop="28dp"
                 android:paddingEnd="@dimen/edge" />
+
+            <!-- Photo credit, waiting at the end of the grid for anyone who scrolls down -->
+            <TextView
+                android:id="@+id/credit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:paddingStart="@dimen/edge"
+                android:paddingEnd="@dimen/edge"
+                android:textColor="#80FFFFFF"
+                android:textSize="12sp" />
         </LinearLayout>
     </com.aravi365.driftwood.FocusScrollView>
 
