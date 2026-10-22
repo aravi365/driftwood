@@ -299,6 +299,7 @@ class MainActivity : Activity() {
             openFirst(Intent().setClassName("com.android.systemui", "com.android.systemui.Somnambulator"))
         },
         QuickPanel.Item("Settings", R.drawable.ic_settings) { open(Intent(Settings.ACTION_SETTINGS)) },
+        QuickPanel.Item("Driftwood", R.drawable.ic_tune) { hideQuick(); showDriftwoodMenu() },
         QuickPanel.Item("Turn off", R.drawable.ic_power) { askTurnOff() },
     )
 

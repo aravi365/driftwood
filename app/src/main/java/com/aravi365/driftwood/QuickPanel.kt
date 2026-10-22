@@ -31,8 +31,8 @@ class QuickPanel(context: Context) : LinearLayout(context) {
     fun setItems(items: List<Item>) {
         removeAllViews()
         items.forEachIndexed { i, item ->
-            addView(chip(item), LayoutParams((104 * dp).toInt(), (84 * dp).toInt()).apply {
-                if (i > 0) marginStart = (14 * dp).toInt()
+            addView(chip(item), LayoutParams((94 * dp).toInt(), (84 * dp).toInt()).apply {
+                if (i > 0) marginStart = (10 * dp).toInt()
             })
         }
     }
