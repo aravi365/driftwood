@@ -121,6 +121,20 @@
         </LinearLayout>
     </com.aravi365.driftwood.FocusScrollView>
 
+    <!-- Quick settings: Menu key, or Up from the top row -->
+    <FrameLayout
+        android:id="@+id/quick"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="@drawable/quick_scrim"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:elevation="12dp"
+        android:paddingTop="44dp"
+        android:paddingBottom="110dp"
+        android:visibility="gone" />
+
     <!-- Sticky glass bar: fades in once the top shelf scrolls away -->
     <LinearLayout
         android:id="@+id/bar"

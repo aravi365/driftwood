@@ -53,6 +53,8 @@ class MainActivity : Activity() {
     private val hideHint = Runnable { hint.animate().alpha(0f).setDuration(600).start() }
     private lateinit var barWeather: TextView
     private lateinit var caption: TextView
+    private lateinit var quick: FrameLayout
+    private lateinit var quickPanel: QuickPanel
 
     private val dp by lazy { resources.displayMetrics.density }
     private val art = HashMap<String, Art>()
@@ -107,6 +109,10 @@ class MainActivity : Activity() {
         hint = findViewById(R.id.hint)
         barWeather = findViewById(R.id.bar_weather)
         caption = findViewById(R.id.caption)
+        quick = findViewById(R.id.quick)
+        quickPanel = QuickPanel(this)
+        quick.addView(quickPanel, FrameLayout.LayoutParams(-1, -2))
+        quickPanel.setItems(quickItems())
 
         val m = resources.displayMetrics
         shelf.layoutParams.height = (m.heightPixels * 0.56f).toInt()
@@ -202,6 +208,98 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         applyExtras(intent)
         goHome()
+    }
+
+    // ---- quick settings ----
+
+    private fun quickItems() = listOf(
+        QuickPanel.Item("Wi-Fi", R.drawable.ic_wifi) { open(Intent(Settings.ACTION_WIFI_SETTINGS)) },
+        QuickPanel.Item("Bluetooth", R.drawable.ic_bluetooth) {
+            openFirst(
+                Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.accessories.AddAccessoryActivity"),
+                Intent(Settings.ACTION_BLUETOOTH_SETTINGS),
+            )
+        },
+        QuickPanel.Item("Picture", R.drawable.ic_picture) {
+            openFirst(
+                Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.picture.ui.PictureModeActivity"),
+                Intent(Settings.ACTION_DISPLAY_SETTINGS),
+            )
+        },
+        QuickPanel.Item("Sound", R.drawable.ic_sound) {
+            openFirst(
+                Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.sound.ui.SoundModeActivity"),
+                Intent(Settings.ACTION_SOUND_SETTINGS),
+            )
+        },
+        QuickPanel.Item("Inputs", R.drawable.ic_hdmi) { showInputs() },
+        QuickPanel.Item("Screensaver", R.drawable.ic_moon) {
+            openFirst(Intent().setClassName("com.android.systemui", "com.android.systemui.Somnambulator"))
+        },
+        QuickPanel.Item("Settings", R.drawable.ic_settings) { open(Intent(Settings.ACTION_SETTINGS)) },
+    )
+
+    private fun showQuick() {
+        if (quick.visibility == View.VISIBLE) return
+        quick.visibility = View.VISIBLE
+        quick.alpha = 0f
+        quick.translationY = -24 * dp
+        quick.animate().alpha(1f).translationY(0f).setDuration(220).start()
+        chrome.animate().alpha(0f).setDuration(160).start()
+        caption.animate().alpha(0f).setDuration(160).start()
+        quickPanel.focusFirst()
+    }
+
+    private fun hideQuick() {
+        if (quick.visibility != View.VISIBLE) return
+        quick.animate().alpha(0f).translationY(-24 * dp).setDuration(180).withEndAction { quick.visibility = View.GONE }.start()
+        chrome.animate().alpha(if (scroll.scrollY == 0) 1f else 0f).setDuration(220).start()
+        caption.animate().alpha(1f).setDuration(220).start()
+        (tiles.firstOrNull { focusedPkg != null && (it.tag as? App)?.pkg == focusedPkg } ?: tiles.firstOrNull())?.requestFocus()
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+            val open = quick.visibility == View.VISIBLE
+            when (event.keyCode) {
+                android.view.KeyEvent.KEYCODE_MENU -> { if (open) hideQuick() else showQuick(); return true }
+                android.view.KeyEvent.KEYCODE_BACK, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> if (open) { hideQuick(); return true }
+                android.view.KeyEvent.KEYCODE_DPAD_UP ->
+                    if (!open && (currentFocus as? Tile)?.row == 0) { showQuick(); return true }
+                    else if (open) return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    /** Every connected HDMI input, hidden tiles included. */
+    private fun showInputs() {
+        val inputs = AppRepo.load(this).filter { it.pkg.startsWith(AppRepo.INPUT_PREFIX) }
+        if (inputs.isEmpty()) {
+            Toast.makeText(this, "No inputs found", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = prefs.labels
+        AlertDialog.Builder(this, R.style.DriftwoodDialog)
+            .setTitle("Switch input")
+            .setItems(inputs.map { labels[it.pkg] ?: it.label }.toTypedArray()) { _, which ->
+                hideQuick()
+                open(inputs[which].launch)
+            }
+            .show()
+    }
+
+    /** Vendor settings screens differ between TVs, so try the specific one and fall back. */
+    private fun openFirst(vararg intents: Intent) {
+        for (i in intents) {
+            if (i.resolveActivity(packageManager) == null) continue
+            try {
+                startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                hideQuick()
+                return
+            } catch (e: Exception) { }
+        }
+        open(Intent(Settings.ACTION_SETTINGS))
     }
 
     @Deprecated("Back on a launcher just returns to the top row")
@@ -403,6 +501,7 @@ class MainActivity : Activity() {
     private fun open(intent: Intent) {
         try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            hideQuick()
         } catch (e: Exception) {
             Toast.makeText(this, "Not available on this TV", Toast.LENGTH_SHORT).show()
         }
@@ -511,7 +610,10 @@ class MainActivity : Activity() {
                     0 -> askCity()
                     1 -> askWallpapers()
                     2 -> showHiddenMenu()
-                    3 -> open(Intent(Settings.ACTION_DREAM_SETTINGS))
+                    3 -> openFirst(
+                        Intent(Settings.ACTION_DREAM_SETTINGS),
+                        Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.device.display.daydream.DaydreamActivity"),
+                    )
                 }
             }
             .show()
@@ -566,5 +668,6 @@ class MainActivity : Activity() {
         const val COLUMNS = 5
         const val PHOTO_MS = 120_000L
         const val REQ_PHOTOS = 7
+        const val TV_SETTINGS = "com.android.tv.settings"
     }
 }
