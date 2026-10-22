@@ -9,7 +9,7 @@ I built it because the stock home screen felt slow and crowded with ads, and I w
 ## What you get
 
 - **Your apps in a clean 5-wide grid.** TV apps show their full banner, phone-only apps get a tile coloured from their icon.
-- **A new photo every two minutes.** Bing's photo of the day (8 a day) or Unsplash, with a slow zoom and drift. The caption sits small in the corner.
+- **A new photo every two minutes, never the same one twice.** Bing's photos of the day from a dozen countries, then Unsplash, with a slow zoom and drift. The photo credit waits at the bottom of the grid.
 - **Weather** for where you are, worked out from your connection. You can type a city instead.
 - **A calm focus style.** The selected app lifts a little inside a thin glass edge with a soft glow, and a light sweep passes over it.
 - **A sticky top bar.** Scroll down and the time, date and weather stay at the top while the shelf fades away.
@@ -133,7 +133,7 @@ Choose **Bing photo of the day** or **Unsplash** under **Settings → Wallpapers
 adb shell am start -n com.aravi365.driftwood/.MainActivity --es wallpapers unsplash
 ```
 
-Photos are cached and refreshed at most every six hours. Between sunset and sunrise they're dimmed and warmed automatically.
+Driftwood keeps a few unseen photos ready and remembers every one it has shown, so nothing repeats. Bing covers roughly the last two weeks across a dozen countries; once those are used up it carries on with Unsplash. Shown photos are deleted, so storage stays small. Between sunset and sunrise they're dimmed and warmed automatically.
 
 ### Your own tile pictures and names
 
