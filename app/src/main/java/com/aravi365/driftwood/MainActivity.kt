@@ -182,6 +182,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         resumed = true
+        Updater.check(this) { it?.let(::offerUpdate) }
         Weather.refresh(prefs) { showWeather(it) }
         kenBurns.forEach { it?.resume() }
         main.removeCallbacks(rotate)
@@ -681,7 +682,7 @@ class MainActivity : Activity() {
     }
 
     private fun showDriftwoodMenu() {
-        val options = arrayOf("Weather location", "Wallpapers", "App order", "Show a hidden app", "Screensaver")
+        val options = arrayOf("Weather location", "Wallpapers", "App order", "Show a hidden app", "Screensaver", "Check for updates")
         AlertDialog.Builder(this, R.style.DriftwoodDialog)
             .setTitle("Driftwood")
             .setItems(options) { _, which ->
@@ -694,8 +695,34 @@ class MainActivity : Activity() {
                         Intent(Settings.ACTION_DREAM_SETTINGS),
                         Intent().setClassName(TV_SETTINGS, "$TV_SETTINGS.device.display.daydream.DaydreamActivity"),
                     )
+                    5 -> Updater.check(this, force = true) { release ->
+                        if (release != null) offerUpdate(release)
+                        else Toast.makeText(this, "Driftwood ${Updater.installedVersion(this)} is the latest", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
+            .show()
+    }
+
+    private fun offerUpdate(release: Updater.Release) {
+        if (isFinishing) return
+        AlertDialog.Builder(this, R.style.DriftwoodDialog)
+            .setTitle("Update available")
+            .setMessage("Driftwood ${release.version} is ready (you have ${Updater.installedVersion(this)}).")
+            .setPositiveButton("Install") { _, _ ->
+                if (!packageManager.canRequestPackageInstalls()) {
+                    AlertDialog.Builder(this, R.style.DriftwoodDialog)
+                        .setTitle("Allow Driftwood to install updates")
+                        .setMessage("Turn on Driftwood under Settings > Apps > Special app access > Install unknown apps, or from a computer:\n\n" +
+                            "adb shell appops set $packageName REQUEST_INSTALL_PACKAGES allow")
+                        .setPositiveButton("Open settings") { _, _ ->
+                            openFirst(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                        }
+                        .setNegativeButton("Later", null)
+                        .show()
+                } else Updater.install(this, release)
+            }
+            .setNegativeButton("Later", null)
             .show()
     }
 
