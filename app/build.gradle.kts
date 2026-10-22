@@ -10,8 +10,8 @@ android {
         applicationId = "com.aravi365.driftwood"
         minSdk = 28
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
     // Release key lives outside the repo, in ~/.gradle/gradle.properties (see README).
     // Without it, release builds fall back to the debug key so anyone can still build.
